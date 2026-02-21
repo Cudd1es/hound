@@ -1,0 +1,5 @@
+Requirements:
+- 3+ years production Python
+- FastAPI or Flask
+- Strong SQL optimization
+- Experience with Kubernetes

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hound</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <h1>Hound 匹配分析</h1>
+
+      <section class="card">
+        <label for="api-url">本地 API 地址</label>
+        <input id="api-url" type="text" value="http://127.0.0.1:8000/analyze" />
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <h2>简历 JSON</h2>
+          <button id="save-resume" class="btn secondary">保存</button>
+        </div>
+        <textarea id="resume-json" rows="8" spellcheck="false">{
+  "skills": ["python", "fastapi", "sql"],
+  "experiences": []
+}</textarea>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <h2>Job Posting</h2>
+          <button id="extract-posting" class="btn secondary">从当前页面提取</button>
+        </div>
+        <textarea id="posting-text" rows="10" spellcheck="false" placeholder="粘贴岗位描述，或点击“从当前页面提取”"></textarea>
+      </section>
+
+      <section class="card">
+        <div class="row actions">
+          <button id="analyze" class="btn primary">开始分析</button>
+          <span id="status"></span>
+        </div>
+      </section>
+
+      <section class="card" id="result-card" hidden>
+        <h2>分析结果</h2>
+        <p id="overall"></p>
+        <div id="rows"></div>
+        <h3>建议</h3>
+        <ul id="suggestions"></ul>
+      </section>
+    </main>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
