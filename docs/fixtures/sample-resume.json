@@ -1,0 +1,9 @@
+{
+  "skills": ["Python", "FastAPI", "SQL", "ETL"],
+  "experiences": [
+    {
+      "title": "Software Engineer",
+      "years": 3
+    }
+  ]
+}
