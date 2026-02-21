@@ -60,10 +60,11 @@ async def parse_resume(file: UploadFile = File(...)) -> dict[str, Any]:
     try:
         result = parse_resume_file(filename=filename, content=content)
         logger.info(
-            "resume parse result: filename=%s skills_count=%s extracted_chars=%s",
+            "resume parse result: filename=%s skills_count=%s extracted_chars=%s used_llm=%s",
             filename,
             len(result.get("profile", {}).get("skills", [])),
             len(result.get("extracted_text", "")),
+            result.get("used_llm", False),
         )
         return result
     except ValueError as exc:

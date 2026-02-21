@@ -33,6 +33,12 @@ conda run -n hound pytest backend/tests -q
 PYTHONPATH=backend/src conda run -n hound uvicorn hound_core.api:app --host 127.0.0.1 --port 8000
 ```
 
+快捷启动（默认启用 Ollama + `gemma3-27b`）：
+
+```bash
+./scripts/start_backend.sh
+```
+
 健康检查：
 
 ```bash
@@ -65,5 +71,18 @@ PYTHONPATH=backend/src conda run -n hound python -m hound_core.cli \
 
 - 插件侧边栏内置运行日志（请求 URL、提取回退、错误详情）。
 - 后端日志默认写入 `logs/hound.log`。
+
+## 7. Ollama LLM 模式
+
+- 默认规则解析（不开 LLM）：`HOUND_LLM_PROVIDER=rule`
+- 启用 Ollama：`HOUND_LLM_PROVIDER=ollama`
+- 默认 Ollama 地址：`http://127.0.0.1:11434`
+- 默认模型：`gemma3-27b`
+
+如果你本地模型名不同，启动前覆盖：
+
+```bash
+HOUND_OLLAMA_MODEL=gemma3:27b ./scripts/start_backend.sh
+```
 
 详细见：`docs/usage/extension.md`

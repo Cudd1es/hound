@@ -6,6 +6,12 @@
 PYTHONPATH=backend/src conda run -n hound uvicorn hound_core.api:app --host 127.0.0.1 --port 8000
 ```
 
+或使用快捷脚本（默认启用 Ollama）：
+
+```bash
+./scripts/start_backend.sh
+```
+
 ## 接口
 
 ### GET /health
@@ -83,3 +89,11 @@ curl -X POST http://127.0.0.1:8000/resume/parse \
 
 - 后端日志文件默认写到：`logs/hound.log`
 - 可通过环境变量覆盖路径：`HOUND_LOG_PATH=/your/path/hound.log`
+
+## LLM 配置
+
+- `HOUND_LLM_PROVIDER=rule`：纯规则解析（默认）
+- `HOUND_LLM_PROVIDER=ollama`：启用 Ollama
+- `HOUND_OLLAMA_URL`：Ollama 地址（默认 `http://127.0.0.1:11434`）
+- `HOUND_OLLAMA_MODEL`：模型名（默认 `gemma3-27b`）
+- `HOUND_OLLAMA_TIMEOUT_SECONDS`：模型请求超时秒数（默认 `120`）

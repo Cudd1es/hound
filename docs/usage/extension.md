@@ -19,6 +19,12 @@
 PYTHONPATH=backend/src conda run -n hound uvicorn hound_core.api:app --host 127.0.0.1 --port 8000
 ```
 
+推荐使用快捷脚本（默认启用 Ollama + `gemma3-27b`）：
+
+```bash
+./scripts/start_backend.sh
+```
+
 2. 加载扩展：
    - 打开 `chrome://extensions`
    - 开启开发者模式
