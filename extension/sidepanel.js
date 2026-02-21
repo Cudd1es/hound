@@ -1,4 +1,6 @@
 const apiUrlInput = document.getElementById("api-url");
+const resumeFileInput = document.getElementById("resume-file");
+const parseResumeFileBtn = document.getElementById("parse-resume-file");
 const resumeJsonInput = document.getElementById("resume-json");
 const postingTextInput = document.getElementById("posting-text");
 const saveResumeBtn = document.getElementById("save-resume");
@@ -14,6 +16,18 @@ function setStatus(message) {
   statusEl.textContent = message;
 }
 
+function resolveEndpoint(pathname, fallback) {
+  try {
+    const url = new URL(apiUrlInput.value.trim());
+    url.pathname = pathname;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch (_error) {
+    return fallback;
+  }
+}
+
 async function loadPersistedInputs() {
   const saved = await chrome.storage.local.get(["resumeJson", "apiUrl"]);
   if (saved.resumeJson) resumeJsonInput.value = saved.resumeJson;
@@ -26,6 +40,46 @@ async function saveInputs() {
     apiUrl: apiUrlInput.value
   });
   setStatus("已保存配置");
+}
+
+async function parseResumeFileUpload() {
+  const file = resumeFileInput.files?.[0];
+  if (!file) {
+    setStatus("请先选择 PDF 或 DOCX 文件");
+    return;
+  }
+
+  if (!/\.(pdf|docx)$/i.test(file.name)) {
+    setStatus("仅支持 PDF 或 DOCX");
+    return;
+  }
+
+  setStatus("简历解析中...");
+
+  const endpoint = resolveEndpoint("/resume/parse", "http://127.0.0.1:8000/resume/parse");
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    body: formData
+  });
+
+  if (!response.ok) {
+    let detail = `简历解析失败: ${response.status}`;
+    try {
+      const body = await response.json();
+      if (body?.detail) detail = `简历解析失败: ${body.detail}`;
+    } catch (_error) {
+      // Keep default message.
+    }
+    setStatus(detail);
+    return;
+  }
+
+  const body = await response.json();
+  resumeJsonInput.value = JSON.stringify(body.profile || {}, null, 2);
+  setStatus("简历解析完成，已填入 JSON");
 }
 
 function renderResult(report) {
@@ -105,6 +159,9 @@ async function analyze() {
 }
 
 saveResumeBtn.addEventListener("click", saveInputs);
+parseResumeFileBtn.addEventListener("click", () => {
+  parseResumeFileUpload().catch((error) => setStatus(`解析异常: ${error.message}`));
+});
 extractPostingBtn.addEventListener("click", () => {
   extractFromActiveTab().catch((error) => setStatus(`提取异常: ${error.message}`));
 });

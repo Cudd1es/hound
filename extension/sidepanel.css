@@ -48,6 +48,15 @@ h3 {
   gap: 8px;
 }
 
+.row input[type="file"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.row .btn {
+  flex-shrink: 0;
+}
+
 textarea,
 input {
   width: 100%;
