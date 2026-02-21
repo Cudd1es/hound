@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Core matching engine for job posting and resume analysis."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "fastapi>=0.128.0,<0.129.0",
+  "uvicorn>=0.40.0,<0.41.0",
+]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
