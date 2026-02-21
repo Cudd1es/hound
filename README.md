@@ -18,6 +18,7 @@ conda env list
 
 ```bash
 conda create -y -n hound python=3.11 pytest fastapi uvicorn httpx
+conda install -y -n hound -c conda-forge python-docx pypdf
 ```
 
 ## 2. 运行测试
@@ -54,6 +55,7 @@ PYTHONPATH=backend/src conda run -n hound python -m hound_core.cli \
 4. 目录选择 `extension/`
 5. 打开任意 job posting 页面，点击扩展图标打开侧边栏
 6. 在侧边栏中：
+   - 可上传 PDF/DOCX 并点击「解析简历文件」自动填充简历 JSON
    - 可点击「从当前页面提取」自动抓取 posting
    - 填写/保存简历 JSON
    - 点击「开始分析」调用本地 API

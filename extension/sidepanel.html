@@ -20,6 +20,10 @@
           <h2>简历 JSON</h2>
           <button id="save-resume" class="btn secondary">保存</button>
         </div>
+        <div class="row">
+          <input id="resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          <button id="parse-resume-file" class="btn secondary">解析简历文件</button>
+        </div>
         <textarea id="resume-json" rows="8" spellcheck="false">{
   "skills": ["python", "fastapi", "sql"],
   "experiences": []
