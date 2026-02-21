@@ -7,8 +7,9 @@
 - 从当前页面提取岗位描述（content script）
 - 上传 PDF/DOCX 简历并自动生成简历 JSON
 - 编辑并保存简历 JSON（chrome.storage.local）
-- 调用本地 API `/analyze`
+- 调用本地 API（支持填写 `.../analyze` 或 base URL）
 - 渲染总分、逐条匹配结论和建议
+- 侧边栏内置运行日志，方便排查请求与提取错误
 
 ## 本地联调步骤
 
@@ -31,7 +32,8 @@ PYTHONPATH=backend/src conda run -n hound uvicorn hound_core.api:app --host 127.
 
 ## 常见问题
 
-- `API 错误: 404/500`：确认 API 是否运行、URL 是否是 `http://127.0.0.1:8000/analyze`
-- `简历解析失败`：确认文件格式是 `.pdf` 或 `.docx`，并且 API 正常运行
+- `API 错误: 404/500`：确认 API 是否运行，并检查 side panel 的「运行日志」里请求 URL。
+- `简历解析失败: 接口不存在`：通常是后端版本过旧或 API 前缀路径配置不一致，重启后端并确认接口存在 `POST /resume/parse`。
+- `提取异常: Could not establish connection...`：插件已加 fallback；若仍失败，请刷新当前 job posting 页面后重试。
 - 提取文本过短：页面结构可能不匹配，手动粘贴 posting 即可
 - JSON 解析失败：检查简历输入是否为合法 JSON

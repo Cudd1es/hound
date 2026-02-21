@@ -1,3 +1,5 @@
+import { buildEndpoint, defaultEndpoint } from "./sidepanel_helpers.js";
+
 const apiUrlInput = document.getElementById("api-url");
 const resumeFileInput = document.getElementById("resume-file");
 const parseResumeFileBtn = document.getElementById("parse-resume-file");
@@ -6,32 +8,71 @@ const postingTextInput = document.getElementById("posting-text");
 const saveResumeBtn = document.getElementById("save-resume");
 const extractPostingBtn = document.getElementById("extract-posting");
 const analyzeBtn = document.getElementById("analyze");
+const clearLogsBtn = document.getElementById("clear-logs");
 const statusEl = document.getElementById("status");
 const resultCard = document.getElementById("result-card");
 const overallEl = document.getElementById("overall");
 const rowsEl = document.getElementById("rows");
 const suggestionsEl = document.getElementById("suggestions");
+const logsEl = document.getElementById("logs");
 
-function setStatus(message) {
-  statusEl.textContent = message;
+const MAX_LOG_LINES = 200;
+const logLines = [];
+
+function formatNow() {
+  return new Date().toLocaleTimeString("zh-CN", { hour12: false });
 }
 
-function resolveEndpoint(pathname, fallback) {
-  try {
-    const url = new URL(apiUrlInput.value.trim());
-    url.pathname = pathname;
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch (_error) {
-    return fallback;
+function appendLog(level, message) {
+  const line = `[${formatNow()}] [${level.toUpperCase()}] ${message}`;
+  logLines.push(line);
+  if (logLines.length > MAX_LOG_LINES) logLines.shift();
+  logsEl.textContent = logLines.join("\n");
+  logsEl.scrollTop = logsEl.scrollHeight;
+
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+}
+
+function setStatus(message, level = "info") {
+  statusEl.textContent = message;
+  appendLog(level, message);
+}
+
+function parseErrorDetail(defaultMessage, responseBody, responseStatus) {
+  if (responseStatus === 404) {
+    return `${defaultMessage}: 接口不存在，请确认后端已更新并重启`;
   }
+  if (responseBody?.detail) {
+    return `${defaultMessage}: ${responseBody.detail}`;
+  }
+  return `${defaultMessage}: ${responseStatus}`;
+}
+
+function extractPostingTextInPage() {
+  const selectors = [
+    "[data-test-job-description]",
+    ".jobs-description-content__text",
+    ".description",
+    "main"
+  ];
+
+  for (const selector of selectors) {
+    const node = document.querySelector(selector);
+    if (node && node.textContent && node.textContent.trim().length > 120) {
+      return node.textContent.trim();
+    }
+  }
+
+  return (document.body?.innerText || "").trim();
 }
 
 async function loadPersistedInputs() {
   const saved = await chrome.storage.local.get(["resumeJson", "apiUrl"]);
   if (saved.resumeJson) resumeJsonInput.value = saved.resumeJson;
-  if (saved.apiUrl) apiUrlInput.value = saved.apiUrl;
+  apiUrlInput.value = saved.apiUrl || defaultEndpoint("analyze");
+  appendLog("info", `当前分析接口: ${apiUrlInput.value}`);
 }
 
 async function saveInputs() {
@@ -42,38 +83,57 @@ async function saveInputs() {
   setStatus("已保存配置");
 }
 
+function createResumeFormData(file) {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return formData;
+}
+
+async function requestResumeParse(file, endpoint) {
+  return fetch(endpoint, {
+    method: "POST",
+    body: createResumeFormData(file)
+  });
+}
+
 async function parseResumeFileUpload() {
   const file = resumeFileInput.files?.[0];
   if (!file) {
-    setStatus("请先选择 PDF 或 DOCX 文件");
+    setStatus("请先选择 PDF 或 DOCX 文件", "warn");
     return;
   }
 
   if (!/\.(pdf|docx)$/i.test(file.name)) {
-    setStatus("仅支持 PDF 或 DOCX");
+    setStatus("仅支持 PDF 或 DOCX", "warn");
     return;
   }
 
   setStatus("简历解析中...");
 
-  const endpoint = resolveEndpoint("/resume/parse", "http://127.0.0.1:8000/resume/parse");
-  const formData = new FormData();
-  formData.append("file", file, file.name);
+  const primaryEndpoint = buildEndpoint(apiUrlInput.value, "resume_parse");
+  appendLog("info", `简历解析请求: ${primaryEndpoint}`);
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    body: formData
-  });
+  let endpoint = primaryEndpoint;
+  let response = await requestResumeParse(file, endpoint);
+
+  if (response.status === 404) {
+    const fallbackEndpoint = defaultEndpoint("resume_parse");
+    if (fallbackEndpoint !== primaryEndpoint) {
+      appendLog("warn", `主解析接口返回404，回退到 ${fallbackEndpoint}`);
+      endpoint = fallbackEndpoint;
+      response = await requestResumeParse(file, endpoint);
+    }
+  }
 
   if (!response.ok) {
-    let detail = `简历解析失败: ${response.status}`;
+    let body = null;
     try {
-      const body = await response.json();
-      if (body?.detail) detail = `简历解析失败: ${body.detail}`;
+      body = await response.json();
     } catch (_error) {
-      // Keep default message.
+      // Keep empty body.
     }
-    setStatus(detail);
+    setStatus(parseErrorDetail("简历解析失败", body, response.status), "error");
+    appendLog("error", `解析接口失败: ${endpoint}`);
     return;
   }
 
@@ -110,19 +170,45 @@ function renderResult(report) {
   }
 }
 
+async function extractFromContentScript(tabId) {
+  const response = await chrome.tabs.sendMessage(tabId, { type: "hound-extract-posting" });
+  if (response?.postingText?.trim()) return response.postingText.trim();
+  throw new Error("content script returned empty posting text");
+}
+
+async function extractViaScripting(tabId) {
+  const result = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: extractPostingTextInPage
+  });
+
+  const text = result?.[0]?.result;
+  if (typeof text === "string" && text.trim()) return text.trim();
+  throw new Error("scripting extraction returned empty posting text");
+}
+
 async function extractFromActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) {
-    setStatus("未找到活动标签页");
+    setStatus("未找到活动标签页", "error");
     return;
   }
 
-  const response = await chrome.tabs.sendMessage(tab.id, { type: "hound-extract-posting" });
-  if (response?.postingText) {
-    postingTextInput.value = response.postingText;
+  try {
+    const postingText = await extractFromContentScript(tab.id);
+    postingTextInput.value = postingText;
     setStatus("已提取页面岗位描述");
-  } else {
-    setStatus("提取失败，请手动粘贴");
+    return;
+  } catch (error) {
+    appendLog("warn", `content script 提取失败，开始 fallback: ${error.message}`);
+  }
+
+  try {
+    const postingText = await extractViaScripting(tab.id);
+    postingTextInput.value = postingText;
+    setStatus("已提取页面岗位描述（fallback）");
+  } catch (error) {
+    setStatus(`提取失败: ${error.message}`, "error");
   }
 }
 
@@ -131,25 +217,28 @@ async function analyze() {
   try {
     profile = JSON.parse(resumeJsonInput.value);
   } catch (_error) {
-    setStatus("简历 JSON 解析失败");
+    setStatus("简历 JSON 解析失败", "error");
     return;
   }
 
   const postingText = postingTextInput.value.trim();
   if (!postingText) {
-    setStatus("岗位描述为空");
+    setStatus("岗位描述为空", "warn");
     return;
   }
 
   setStatus("分析中...");
-  const response = await fetch(apiUrlInput.value, {
+  const analyzeEndpoint = buildEndpoint(apiUrlInput.value, "analyze");
+  appendLog("info", `分析请求: ${analyzeEndpoint}`);
+
+  const response = await fetch(analyzeEndpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ profile, posting_text: postingText })
   });
 
   if (!response.ok) {
-    setStatus(`API 错误: ${response.status}`);
+    setStatus(`API 错误: ${response.status}`, "error");
     return;
   }
 
@@ -160,13 +249,18 @@ async function analyze() {
 
 saveResumeBtn.addEventListener("click", saveInputs);
 parseResumeFileBtn.addEventListener("click", () => {
-  parseResumeFileUpload().catch((error) => setStatus(`解析异常: ${error.message}`));
+  parseResumeFileUpload().catch((error) => setStatus(`解析异常: ${error.message}`, "error"));
 });
 extractPostingBtn.addEventListener("click", () => {
-  extractFromActiveTab().catch((error) => setStatus(`提取异常: ${error.message}`));
+  extractFromActiveTab().catch((error) => setStatus(`提取异常: ${error.message}`, "error"));
 });
 analyzeBtn.addEventListener("click", () => {
-  analyze().catch((error) => setStatus(`分析异常: ${error.message}`));
+  analyze().catch((error) => setStatus(`分析异常: ${error.message}`, "error"));
+});
+clearLogsBtn.addEventListener("click", () => {
+  logLines.length = 0;
+  logsEl.textContent = "";
+  appendLog("info", "日志已清空");
 });
 
-loadPersistedInputs().catch((error) => setStatus(`初始化异常: ${error.message}`));
+loadPersistedInputs().catch((error) => setStatus(`初始化异常: ${error.message}`, "error"));

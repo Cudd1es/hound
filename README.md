@@ -59,5 +59,11 @@ PYTHONPATH=backend/src conda run -n hound python -m hound_core.cli \
    - 可点击「从当前页面提取」自动抓取 posting
    - 填写/保存简历 JSON
    - 点击「开始分析」调用本地 API
+   - 可查看「运行日志」定位接口路径和提取异常
+
+## 6. Logging
+
+- 插件侧边栏内置运行日志（请求 URL、提取回退、错误详情）。
+- 后端日志默认写入 `logs/hound.log`。
 
 详细见：`docs/usage/extension.md`

@@ -3,7 +3,7 @@
   "name": "Hound Job Matcher",
   "version": "0.1.0",
   "description": "Analyze job postings against your resume profile with a local Python API.",
-  "permissions": ["storage", "activeTab", "tabs", "sidePanel"],
+  "permissions": ["storage", "activeTab", "tabs", "sidePanel", "scripting"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*", "https://*/*", "http://*/*"],
   "background": {
     "service_worker": "background.js"
