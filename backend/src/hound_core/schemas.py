@@ -10,6 +10,7 @@ class Requirement(TypedDict):
     id: str
     text: str
     category: Literal["must", "preferred", "responsibility", "other"]
+    dimension: Literal["technical", "soft", "compliance", "other"]
     weight: float
 
 

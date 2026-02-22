@@ -5,6 +5,7 @@
 - 本地 FastAPI 服务（供 Chrome 插件调用）
 - 本地 CLI（批量或脚本化分析）
 - Chrome MV3 插件（边看 job posting 边分析）
+- 简历解析缓存（同一文件不重复 LLM 解析）与 JD 聚焦提取（优先职责/要求区段）
 
 ## 1. 环境
 
@@ -33,7 +34,7 @@ conda run -n hound pytest backend/tests -q
 PYTHONPATH=backend/src conda run -n hound uvicorn hound_core.api:app --host 127.0.0.1 --port 8000
 ```
 
-快捷启动（默认启用 Ollama + `gemma3-27b`）：
+快捷启动（默认启用 Ollama + `gemma3:27b`，并自动启用 LLM 匹配）：
 
 ```bash
 ./scripts/start_backend.sh
@@ -76,13 +77,20 @@ PYTHONPATH=backend/src conda run -n hound python -m hound_core.cli \
 
 - 默认规则解析（不开 LLM）：`HOUND_LLM_PROVIDER=rule`
 - 启用 Ollama：`HOUND_LLM_PROVIDER=ollama`
+- 匹配阶段是否启用 LLM：`HOUND_LLM_MATCHING=auto|true|false`（默认 `auto`）
 - 默认 Ollama 地址：`http://127.0.0.1:11434`
-- 默认模型：`gemma3-27b`
+- 默认模型：`gemma3:27b`
 
 如果你本地模型名不同，启动前覆盖：
 
 ```bash
 HOUND_OLLAMA_MODEL=gemma3:27b ./scripts/start_backend.sh
+```
+
+只想保留 LLM 提取（简历/JD），但加速匹配阶段：
+
+```bash
+HOUND_LLM_MATCHING=false ./scripts/start_backend.sh
 ```
 
 详细见：`docs/usage/extension.md`

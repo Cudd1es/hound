@@ -1,4 +1,4 @@
-import { buildEndpoint, defaultEndpoint } from "./sidepanel_helpers.js";
+import { buildEndpoint, defaultEndpoint, focusPostingText, resumeFileFingerprint } from "./sidepanel_helpers.js";
 
 const apiUrlInput = document.getElementById("api-url");
 const resumeFileInput = document.getElementById("resume-file");
@@ -18,6 +18,7 @@ const logsEl = document.getElementById("logs");
 
 const MAX_LOG_LINES = 200;
 const logLines = [];
+const RESUME_PARSE_CACHE_KEY = "resumeParseCacheV1";
 
 function formatNow() {
   return new Date().toLocaleTimeString("zh-CN", { hour12: false });
@@ -51,8 +52,69 @@ function parseErrorDetail(defaultMessage, responseBody, responseStatus) {
 }
 
 function extractPostingTextInPage() {
+  const headings = [
+    "about the job",
+    "overview",
+    "responsibilities",
+    "qualifications",
+    "required qualifications",
+    "preferred qualifications",
+    "other requirements"
+  ];
+  const stopMarkers = [
+    "about the company",
+    "more jobs",
+    "looking for talent",
+    "linkedin corporation",
+    "select language",
+    "job search smarter with premium"
+  ];
+
+  function injectLineBreaksByMarkers(text, markers) {
+    let output = text;
+    for (const marker of markers) {
+      const escaped = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      output = output.replace(new RegExp(`\\b${escaped}\\b`, "gi"), `\n${marker}\n`);
+    }
+    return output;
+  }
+
+  function focusText(rawText) {
+    const lines = injectLineBreaksByMarkers(rawText, [...headings, ...stopMarkers])
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    if (!lines.length) return "";
+
+    let start = 0;
+    for (let i = 0; i < lines.length; i += 1) {
+      const lowered = lines[i].toLowerCase();
+      if (headings.some((heading) => lowered.includes(heading))) {
+        start = i;
+        break;
+      }
+    }
+
+    let end = lines.length;
+    for (let i = start; i < lines.length; i += 1) {
+      const lowered = lines[i].toLowerCase();
+      if (stopMarkers.some((marker) => lowered.includes(marker))) {
+        end = i;
+        break;
+      }
+    }
+
+    const focused = lines.slice(start, end).join("\n").trim();
+    const result = focused || lines.join("\n");
+    return result.length > 12000 ? result.slice(0, 12000) : result;
+  }
+
   const selectors = [
     "[data-test-job-description]",
+    ".jobs-box__html-content",
+    ".jobs-description__content",
     ".jobs-description-content__text",
     ".description",
     "main"
@@ -61,11 +123,12 @@ function extractPostingTextInPage() {
   for (const selector of selectors) {
     const node = document.querySelector(selector);
     if (node && node.textContent && node.textContent.trim().length > 120) {
-      return node.textContent.trim();
+      const focused = focusText(node.textContent.trim());
+      if (focused.length > 120) return focused;
     }
   }
 
-  return (document.body?.innerText || "").trim();
+  return focusText((document.body?.innerText || "").trim());
 }
 
 async function loadPersistedInputs() {
@@ -109,6 +172,20 @@ async function parseResumeFileUpload() {
   }
 
   setStatus("简历解析中...");
+  const fingerprint = resumeFileFingerprint(file);
+  const cached = await chrome.storage.local.get([RESUME_PARSE_CACHE_KEY]);
+  const cachedEntry = cached[RESUME_PARSE_CACHE_KEY];
+  if (
+    cachedEntry &&
+    cachedEntry.fingerprint === fingerprint &&
+    cachedEntry.profile &&
+    typeof cachedEntry.profile === "object"
+  ) {
+    resumeJsonInput.value = JSON.stringify(cachedEntry.profile, null, 2);
+    await chrome.storage.local.set({ resumeJson: resumeJsonInput.value });
+    setStatus("简历解析命中本地缓存，已填入 JSON");
+    return;
+  }
 
   const primaryEndpoint = buildEndpoint(apiUrlInput.value, "resume_parse");
   appendLog("info", `简历解析请求: ${primaryEndpoint}`);
@@ -139,6 +216,18 @@ async function parseResumeFileUpload() {
 
   const body = await response.json();
   resumeJsonInput.value = JSON.stringify(body.profile || {}, null, 2);
+  await chrome.storage.local.set({
+    resumeJson: resumeJsonInput.value,
+    [RESUME_PARSE_CACHE_KEY]: {
+      fingerprint,
+      profile: body.profile || {},
+      source: file.name,
+      cachedAt: Date.now()
+    }
+  });
+  if (body.cache_hit) {
+    appendLog("info", "后端简历解析缓存命中");
+  }
   setStatus("简历解析完成，已填入 JSON");
 }
 
@@ -172,7 +261,7 @@ function renderResult(report) {
 
 async function extractFromContentScript(tabId) {
   const response = await chrome.tabs.sendMessage(tabId, { type: "hound-extract-posting" });
-  if (response?.postingText?.trim()) return response.postingText.trim();
+  if (response?.postingText?.trim()) return focusPostingText(response.postingText.trim());
   throw new Error("content script returned empty posting text");
 }
 
@@ -183,7 +272,7 @@ async function extractViaScripting(tabId) {
   });
 
   const text = result?.[0]?.result;
-  if (typeof text === "string" && text.trim()) return text.trim();
+  if (typeof text === "string" && text.trim()) return focusPostingText(text.trim());
   throw new Error("scripting extraction returned empty posting text");
 }
 

@@ -10,6 +10,9 @@ class FakeProfileProvider:
         return {
             "skills": ["python", "llm"],
             "experiences": [{"title": "Engineer", "years": 2}],
+            "semantic_summary": "Python engineer with production LLM delivery experience.",
+            "strengths": ["automation", "reliability"],
+            "experience_signals": ["reduced incident MTTR", "shipped internal tools"],
         }
 
 
@@ -28,3 +31,5 @@ def test_parse_resume_file_uses_profile_provider_when_given() -> None:
 
     assert result["used_llm"] is True
     assert result["profile"]["skills"] == ["llm", "python"]
+    assert result["profile"]["semantic_summary"] == "Python engineer with production LLM delivery experience."
+    assert result["profile"]["strengths"] == ["automation", "reliability"]
