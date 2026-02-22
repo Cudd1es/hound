@@ -97,18 +97,40 @@ curl -X POST http://127.0.0.1:8000/resume/parse \
 
 ## LLM 配置
 
-- `HOUND_LLM_PROVIDER=rule`：纯规则解析（默认）
-- `HOUND_LLM_PROVIDER=ollama`：启用 Ollama
-- `HOUND_LLM_MATCHING=auto|true|false`：匹配阶段是否启用 LLM（默认 `auto`，跟随 `HOUND_LLM_PROVIDER`）
-- `HOUND_OLLAMA_URL`：Ollama 地址（默认 `http://127.0.0.1:11434`）
-- `HOUND_OLLAMA_MODEL`：模型名（默认 `gemma3:27b`）
-- `HOUND_OLLAMA_TIMEOUT_SECONDS`：模型请求超时秒数（默认 `120`）
+- `HOUND_LLM_PROVIDER`：`rule|ollama|openai|auto`
+- `HOUND_LLM_BASE_URL`：统一 LLM API 地址
+- `HOUND_LLM_MODEL`：统一模型名
+- `HOUND_LLM_API_KEY`：统一 API Key（可空）
+- `HOUND_LLM_TIMEOUT_SECONDS`：统一超时秒数
+- `HOUND_LLM_MATCHING=auto|true|false`：匹配阶段是否启用 LLM（默认 `auto`）
 - `HOUND_RESUME_CACHE_PATH`：简历解析缓存文件路径（默认 `logs/resume-parse-cache.json`）
+- `HOUND_RESUME_CACHE_MAX_ENTRIES`：简历缓存最多保留条数（默认 `8`）
 
-如果你希望提速，可保持 `HOUND_LLM_PROVIDER=ollama`，但关闭匹配阶段 LLM：
+兼容旧变量（仍可用）：`HOUND_OLLAMA_*`、`HOUND_OPENAI_*`。
+
+如果你希望提速，可保持 LLM 提取但关闭匹配阶段 LLM：
 
 ```bash
 HOUND_LLM_MATCHING=false ./scripts/start_backend.sh
+```
+
+使用 OpenAI API：
+
+```bash
+HOUND_LLM_PROVIDER=openai \
+HOUND_LLM_BASE_URL=https://api.openai.com/v1 \
+HOUND_LLM_MODEL=gpt-4o-mini \
+HOUND_LLM_API_KEY=YOUR_KEY \
+./scripts/start_backend.sh
+```
+
+使用本地 LLM（API 模式）：
+
+```bash
+HOUND_LLM_PROVIDER=ollama \
+HOUND_LLM_BASE_URL=http://127.0.0.1:11434 \
+HOUND_LLM_MODEL=gemma3:27b \
+./scripts/start_backend.sh
 ```
 
 ## 评分口径（当前）
@@ -119,6 +141,6 @@ HOUND_LLM_MATCHING=false ./scripts/start_backend.sh
 
 ## 简历缓存行为
 
-- `/resume/parse` 会按文件内容哈希缓存最近一次解析结果。
+- `/resume/parse` 会按文件内容哈希做多条目缓存（默认最多 8 条）。
 - 上传同一份简历时将直接返回缓存（`cache_hit=true`），不会重复触发 LLM 解析。
-- 上传新简历时缓存会被替换（符合“只在用户上传新简历时重新解析”的策略）。
+- 上传新简历时写入新缓存条目，超过上限时会按最旧条目淘汰。

@@ -208,3 +208,13 @@ __marimo__/
 # Worktree directories
 .worktrees/
 worktrees/
+
+# Local runtime/cache artifacts
+logs/*.json
+
+# Extension local package/key artifacts
+extension.crx
+extension.pem
+
+# IDE metadata
+.idea/

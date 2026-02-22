@@ -10,7 +10,7 @@ from typing import Any
 from docx import Document
 from pypdf import PdfReader
 
-from .llm_ollama import OllamaResumeProfileProvider, llm_provider_enabled
+from .llm_runtime import create_resume_profile_provider
 from .llm_provider import ResumeProfileProvider
 
 _KNOWN_SKILLS = [
@@ -116,9 +116,7 @@ def parse_resume_file(
     used_llm = False
     profile = _rule_based_profile(extracted_text)
 
-    chosen_provider = profile_provider
-    if chosen_provider is None and llm_provider_enabled():
-        chosen_provider = OllamaResumeProfileProvider()
+    chosen_provider = profile_provider or create_resume_profile_provider()
 
     if chosen_provider is not None:
         try:

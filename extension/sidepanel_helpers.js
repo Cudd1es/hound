@@ -118,11 +118,3 @@ export function focusPostingText(rawText) {
   const result = merged || lines.join("\n");
   return result.length > 12000 ? result.slice(0, 12000) : result;
 }
-
-export function resumeFileFingerprint(file) {
-  if (!file || typeof file !== "object") return "";
-  const name = String(file.name || "");
-  const size = Number(file.size || 0);
-  const lastModified = Number(file.lastModified || 0);
-  return `${name}:${size}:${lastModified}`;
-}

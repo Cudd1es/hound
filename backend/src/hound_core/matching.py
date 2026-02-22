@@ -4,7 +4,7 @@ import logging
 import re
 from typing import Any
 
-from .llm_ollama import OllamaMatchProvider, llm_matching_enabled
+from .llm_runtime import create_match_provider
 from .llm_provider import MatchProvider
 from .schemas import MatchRow, Requirement
 
@@ -113,9 +113,7 @@ def generate_report(
     requirements: list[Requirement],
     match_provider: MatchProvider | None = None,
 ) -> dict[str, Any]:
-    chosen_provider = match_provider
-    if chosen_provider is None and llm_matching_enabled():
-        chosen_provider = OllamaMatchProvider()
+    chosen_provider = match_provider or create_match_provider()
 
     llm_rows_map: dict[str, MatchRow] = {}
     if chosen_provider is not None:

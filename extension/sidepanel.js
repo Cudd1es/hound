@@ -1,4 +1,4 @@
-import { buildEndpoint, defaultEndpoint, focusPostingText, resumeFileFingerprint } from "./sidepanel_helpers.js";
+import { buildEndpoint, defaultEndpoint, focusPostingText } from "./sidepanel_helpers.js";
 
 const apiUrlInput = document.getElementById("api-url");
 const resumeFileInput = document.getElementById("resume-file");
@@ -18,7 +18,6 @@ const logsEl = document.getElementById("logs");
 
 const MAX_LOG_LINES = 200;
 const logLines = [];
-const RESUME_PARSE_CACHE_KEY = "resumeParseCacheV1";
 
 function formatNow() {
   return new Date().toLocaleTimeString("zh-CN", { hour12: false });
@@ -172,20 +171,6 @@ async function parseResumeFileUpload() {
   }
 
   setStatus("简历解析中...");
-  const fingerprint = resumeFileFingerprint(file);
-  const cached = await chrome.storage.local.get([RESUME_PARSE_CACHE_KEY]);
-  const cachedEntry = cached[RESUME_PARSE_CACHE_KEY];
-  if (
-    cachedEntry &&
-    cachedEntry.fingerprint === fingerprint &&
-    cachedEntry.profile &&
-    typeof cachedEntry.profile === "object"
-  ) {
-    resumeJsonInput.value = JSON.stringify(cachedEntry.profile, null, 2);
-    await chrome.storage.local.set({ resumeJson: resumeJsonInput.value });
-    setStatus("简历解析命中本地缓存，已填入 JSON");
-    return;
-  }
 
   const primaryEndpoint = buildEndpoint(apiUrlInput.value, "resume_parse");
   appendLog("info", `简历解析请求: ${primaryEndpoint}`);
@@ -217,13 +202,7 @@ async function parseResumeFileUpload() {
   const body = await response.json();
   resumeJsonInput.value = JSON.stringify(body.profile || {}, null, 2);
   await chrome.storage.local.set({
-    resumeJson: resumeJsonInput.value,
-    [RESUME_PARSE_CACHE_KEY]: {
-      fingerprint,
-      profile: body.profile || {},
-      source: file.name,
-      cachedAt: Date.now()
-    }
+    resumeJson: resumeJsonInput.value
   });
   if (body.cache_hit) {
     appendLog("info", "后端简历解析缓存命中");

@@ -4,7 +4,7 @@ import logging
 import re
 from typing import Any
 
-from .llm_ollama import OllamaRequirementProvider, llm_provider_enabled
+from .llm_runtime import create_requirement_provider
 from .llm_provider import RequirementProvider
 from .schemas import Requirement
 
@@ -192,9 +192,7 @@ def _extract_requirements_rule_based(posting_text: str) -> list[Requirement]:
 
 def extract_requirements(posting_text: str, provider: RequirementProvider | None = None) -> list[Requirement]:
     sanitized_posting_text = _sanitize_posting_text(posting_text)
-    chosen_provider = provider
-    if chosen_provider is None and llm_provider_enabled():
-        chosen_provider = OllamaRequirementProvider()
+    chosen_provider = provider or create_requirement_provider()
 
     if chosen_provider is not None:
         try:

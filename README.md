@@ -73,24 +73,41 @@ PYTHONPATH=backend/src conda run -n hound python -m hound_core.cli \
 - 插件侧边栏内置运行日志（请求 URL、提取回退、错误详情）。
 - 后端日志默认写入 `logs/hound.log`。
 
-## 7. Ollama LLM 模式
+## 7. 统一 LLM 配置
 
-- 默认规则解析（不开 LLM）：`HOUND_LLM_PROVIDER=rule`
-- 启用 Ollama：`HOUND_LLM_PROVIDER=ollama`
-- 匹配阶段是否启用 LLM：`HOUND_LLM_MATCHING=auto|true|false`（默认 `auto`）
-- 默认 Ollama 地址：`http://127.0.0.1:11434`
-- 默认模型：`gemma3:27b`
+- Provider：`HOUND_LLM_PROVIDER=rule|ollama|openai|auto`
+- Base URL：`HOUND_LLM_BASE_URL`
+- Model：`HOUND_LLM_MODEL`
+- API Key：`HOUND_LLM_API_KEY`
+- Timeout：`HOUND_LLM_TIMEOUT_SECONDS`
+- 匹配开关：`HOUND_LLM_MATCHING=auto|true|false`
 
-如果你本地模型名不同，启动前覆盖：
+示例（OpenAI API）：
 
 ```bash
-HOUND_OLLAMA_MODEL=gemma3:27b ./scripts/start_backend.sh
+HOUND_LLM_PROVIDER=openai \
+HOUND_LLM_BASE_URL=https://api.openai.com/v1 \
+HOUND_LLM_MODEL=gpt-4o-mini \
+HOUND_LLM_API_KEY=YOUR_KEY \
+./scripts/start_backend.sh
 ```
 
-只想保留 LLM 提取（简历/JD），但加速匹配阶段：
+示例（本地 LLM API，如 Ollama）：
+
+```bash
+HOUND_LLM_PROVIDER=ollama \
+HOUND_LLM_BASE_URL=http://127.0.0.1:11434 \
+HOUND_LLM_MODEL=gemma3:27b \
+./scripts/start_backend.sh
+```
+
+仅关闭 LLM 匹配以提速（保留 LLM 抽取）：
 
 ```bash
 HOUND_LLM_MATCHING=false ./scripts/start_backend.sh
 ```
 
-详细见：`docs/usage/extension.md`
+详细见：
+- `docs/usage/llm-config-and-provider-guide.md`（中英双语，统一 LLM 配置）
+- `docs/architecture/current-architecture-and-flow.md`（中英双语，架构图与流程图）
+- `docs/usage/extension.md`
