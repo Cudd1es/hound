@@ -57,7 +57,13 @@ scan_repo() {
 }
 
 scan_history() {
-  local tmp
+  local tmp matches
+  local patterns=(
+    '-----BEGIN PRIVATE KEY-----'
+    '-----BEGIN RSA PRIVATE KEY-----'
+    '-----BEGIN EC PRIVATE KEY-----'
+    '-----BEGIN OPENSSH PRIVATE KEY-----'
+  )
   tmp="$(mktemp -t hound-secret-scan-history.XXXXXX)"
   trap 'rm -f "${tmp}"' RETURN
 
@@ -67,12 +73,14 @@ scan_history() {
     fail=1
   fi
 
-  git log --all -G 'BEGIN [A-Z ]*PRIVATE KEY|PRIVATE KEY-----' --pretty=format:'%H %ad %s' --date=iso-strict >"${tmp}" || true
-  if [[ -s "${tmp}" ]]; then
-    echo "[secret-scan] private-key pattern still matches commit history:"
-    sed 's/^/  /' "${tmp}"
-    fail=1
-  fi
+  for pattern in "${patterns[@]}"; do
+    matches="$(git log --all -S "${pattern}" --pretty=format:'%H %ad %s' --date=iso-strict || true)"
+    if [[ -n "${matches}" ]]; then
+      echo "[secret-scan] private-key header found in commit history (${pattern}):"
+      sed 's/^/  /' <<< "${matches}"
+      fail=1
+    fi
+  done
 }
 
 case "${MODE}" in
