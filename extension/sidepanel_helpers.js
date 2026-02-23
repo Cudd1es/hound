@@ -65,6 +65,36 @@ export function defaultEndpoint(kind) {
   return buildEndpoint(DEFAULT_API_ORIGIN, kind);
 }
 
+function errorMessage(error) {
+  if (error instanceof Error) return error.message || "";
+  if (typeof error === "string") return error;
+  if (error && typeof error.message === "string") return error.message;
+  return "";
+}
+
+export function isMissingContentScriptReceiverError(error) {
+  const lowered = errorMessage(error).toLowerCase();
+  if (!lowered) return false;
+  return (
+    lowered.includes("receiving end does not exist") ||
+    (lowered.includes("could not establish connection") && lowered.includes("receiving end"))
+  );
+}
+
+export async function requestPostingTextFromContentScript({ tabId, sendMessage, injectScript }) {
+  const requestMessage = { type: "hound-extract-posting" };
+  try {
+    return await sendMessage(tabId, requestMessage);
+  } catch (error) {
+    if (!isMissingContentScriptReceiverError(error)) {
+      throw error;
+    }
+  }
+
+  await injectScript(tabId);
+  return sendMessage(tabId, requestMessage);
+}
+
 function injectLineBreaksByMarkers(text, markers) {
   let output = text;
   for (const marker of markers) {

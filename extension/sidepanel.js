@@ -1,4 +1,9 @@
-import { buildEndpoint, defaultEndpoint, focusPostingText } from "./sidepanel_helpers.js";
+import {
+  buildEndpoint,
+  defaultEndpoint,
+  focusPostingText,
+  requestPostingTextFromContentScript
+} from "./sidepanel_helpers.js";
 
 const apiUrlInput = document.getElementById("api-url");
 const resumeFileInput = document.getElementById("resume-file");
@@ -239,7 +244,15 @@ function renderResult(report) {
 }
 
 async function extractFromContentScript(tabId) {
-  const response = await chrome.tabs.sendMessage(tabId, { type: "hound-extract-posting" });
+  const response = await requestPostingTextFromContentScript({
+    tabId,
+    sendMessage: async (targetTabId, message) => chrome.tabs.sendMessage(targetTabId, message),
+    injectScript: async (targetTabId) =>
+      chrome.scripting.executeScript({
+        target: { tabId: targetTabId },
+        files: ["content.js"]
+      })
+  });
   if (response?.postingText?.trim()) return focusPostingText(response.postingText.trim());
   throw new Error("content script returned empty posting text");
 }
