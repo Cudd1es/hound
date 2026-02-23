@@ -57,13 +57,7 @@ scan_repo() {
 }
 
 scan_history() {
-  local tmp matches
-  local patterns=(
-    '-----BEGIN PRIVATE KEY-----'
-    '-----BEGIN RSA PRIVATE KEY-----'
-    '-----BEGIN EC PRIVATE KEY-----'
-    '-----BEGIN OPENSSH PRIVATE KEY-----'
-  )
+  local tmp
   tmp="$(mktemp -t hound-secret-scan-history.XXXXXX)"
   trap 'rm -f "${tmp}"' RETURN
 
@@ -73,14 +67,31 @@ scan_history() {
     fail=1
   fi
 
-  for pattern in "${patterns[@]}"; do
-    matches="$(git log --all -S "${pattern}" --pretty=format:'%H %ad %s' --date=iso-strict || true)"
-    if [[ -n "${matches}" ]]; then
-      echo "[secret-scan] private-key header found in commit history (${pattern}):"
-      sed 's/^/  /' <<< "${matches}"
-      fail=1
+  if git rev-list --all --objects | awk '$2 ~ /\.(pem|key|p12|pfx)$/ {print}' >"${tmp}" 2>/dev/null && [[ -s "${tmp}" ]]; then
+    echo "[secret-scan] key-like file extensions still exist in git history:"
+    sed 's/^/  /' "${tmp}"
+    fail=1
+  fi
+
+  : > "${tmp}"
+  while IFS=' ' read -r object path; do
+    [[ -z "${path:-}" ]] && continue
+    case "${path}" in
+      scripts/secret_scan.sh)
+        continue
+        ;;
+    esac
+
+    if git cat-file -p "${object}" 2>/dev/null | grep -qE '^-----BEGIN ((RSA|EC|OPENSSH) )?PRIVATE KEY-----$'; then
+      echo "${object} ${path}" >> "${tmp}"
     fi
-  done
+  done < <(git rev-list --all --objects)
+
+  if [[ -s "${tmp}" ]]; then
+    echo "[secret-scan] private-key header content found in git history blobs:"
+    sed 's/^/  /' "${tmp}"
+    fail=1
+  fi
 }
 
 case "${MODE}" in
