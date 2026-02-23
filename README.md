@@ -73,7 +73,29 @@ PYTHONPATH=backend/src conda run -n hound python -m hound_core.cli \
 - 插件侧边栏内置运行日志（请求 URL、提取回退、错误详情）。
 - 后端日志默认写入 `logs/hound.log`。
 
-## 7. 统一 LLM 配置
+## 7. Secret 防护
+
+- 仓库内禁止跟踪 `*.pem` / `*.key` / `*.p12` / `*.pfx`。
+- `scripts/secret_scan.sh` 提供三种扫描：
+  - `staged`：扫描暂存区（用于 pre-commit）
+  - `repo`：扫描当前仓库 tracked 文件
+  - `history`：扫描历史中是否还存在 `extension.pem` 或 private key 片段
+
+启用本地 git pre-commit hook（推荐）：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+手动扫描：
+
+```bash
+bash scripts/secret_scan.sh all
+```
+
+可选：若你本机安装了 `pre-commit`，也可使用 `.pre-commit-config.yaml`。
+
+## 8. 统一 LLM 配置
 
 - Provider：`HOUND_LLM_PROVIDER=rule|ollama|openai|auto`
 - Base URL：`HOUND_LLM_BASE_URL`

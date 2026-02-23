@@ -215,6 +215,10 @@ logs/*.json
 # Extension local package/key artifacts
 extension.crx
 extension.pem
+*.pem
+*.key
+*.p12
+*.pfx
 
 # IDE metadata
 .idea/
